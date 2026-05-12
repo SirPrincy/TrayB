@@ -6,31 +6,36 @@ extends Camera3D
 @export_group("Déplacement")
 @export var move_speed: float = 20.0
 @export var acceleration: float = 10.0
+@export var edge_margin: int = 20
+@export var use_edge_panning: bool = true
 
 @export_group("Zoom")
-@export var zoom_speed: float = 2.0
+@export var zoom_speed: float = 5.0
 @export var min_zoom: float = 5.0
-@export var max_zoom: float = 50.0
+@export var max_zoom: float = 60.0
+@export var smooth_zoom_speed: float = 10.0
 
 @export_group("Rotation")
 @export var rotation_speed: float = 2.0
+@export var tilt_angle_min: float = -60.0 # Angle quand on est proche
+@export var tilt_angle_max: float = -30.0 # Angle quand on est loin
 
 var _target_position: Vector3 # Position du pivot au sol
-var _target_zoom: float = 20.0
+var _target_zoom: float = 30.0
 var _target_rotation: float = 0.0
+var _current_zoom: float = 30.0
 
 func _ready() -> void:
-	# On initialise la position cible au sol (projection du point de vue initial)
+	# On initialise la position cible au sol
 	_target_position = global_position
 	_target_position.y = 0
 	_target_rotation = rotation.y
-
-	# Inclinaison fixe vers le sol
-	rotation_degrees.x = -45
+	_current_zoom = _target_zoom
 
 func _process(delta: float) -> void:
 	_handle_movement(delta)
 	_handle_rotation(delta)
+	_update_camera_transform(delta)
 
 func _input(event: InputEvent) -> void:
 	# Zoom avec la molette
@@ -40,38 +45,66 @@ func _input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_target_zoom = min(max_zoom, _target_zoom + zoom_speed)
 
-	# Rotation avec le bouton central
-	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
-		_target_rotation -= event.relative.x * 0.01
+	# Rotation et Drag
+	if event is InputEventMouseMotion:
+		# Rotation avec le bouton central
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+			_target_rotation -= event.relative.x * 0.005
+
+		# Déplacement par "drag" avec le bouton droit
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+			var drag_speed = _current_zoom * 0.001
+			var drag_dir = Vector3(-event.relative.x, 0, -event.relative.y).rotated(Vector3.UP, rotation.y)
+			_target_position += drag_dir * drag_speed * 100 * get_process_delta_time()
 
 func _handle_rotation(delta: float) -> void:
-	# Rotation fluide
 	rotation.y = lerp_angle(rotation.y, _target_rotation, acceleration * delta)
 
 func _handle_movement(delta: float) -> void:
 	var input_dir = Vector2.ZERO
 
-	# Mouvements ZQSD / WASD
+	# Touches ZQSD / WASD
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_Z): input_dir.y -= 1
 	if Input.is_key_pressed(KEY_S): input_dir.y += 1
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_Q): input_dir.x -= 1
 	if Input.is_key_pressed(KEY_D): input_dir.x += 1
 
+	# Edge panning
+	if use_edge_panning:
+		var mouse_pos = get_viewport().get_mouse_position()
+		var screen_size = get_viewport().get_visible_rect().size
+		if mouse_pos.x < edge_margin: input_dir.x -= 1
+		if mouse_pos.x > screen_size.x - edge_margin: input_dir.x += 1
+		if mouse_pos.y < edge_margin: input_dir.y -= 1
+		if mouse_pos.y > screen_size.y - edge_margin: input_dir.y += 1
+
 	input_dir = input_dir.normalized()
 
-	# Calcul des directions par rapport à la rotation actuelle
+	# Vitesse adaptée au zoom (plus on est haut, plus on va vite)
+	var speed_multiplier = lerp(1.0, 3.0, (_current_zoom - min_zoom) / (max_zoom - min_zoom))
+
 	var forward = Vector3.FORWARD.rotated(Vector3.UP, rotation.y)
 	var right = Vector3.RIGHT.rotated(Vector3.UP, rotation.y)
 	var move_dir = (forward * input_dir.y + right * input_dir.x)
 
-	# Mise à jour de la position cible du pivot au sol
-	_target_position += move_dir * move_speed * delta
+	_target_position += move_dir * move_speed * speed_multiplier * delta
 
-	# Calcul de la position réelle de la caméra par rapport au pivot
-	# On recule sur l'axe Z local (après rotation) et on monte sur l'axe Y
-	# Pour un angle de 45°, reculer de _target_zoom et monter de _target_zoom
-	# permet de rester focalisé sur le point _target_position au sol.
-	var offset = Vector3(0, _target_zoom, _target_zoom).rotated(Vector3.UP, rotation.y)
+func _update_camera_transform(delta: float) -> void:
+	# Zoom fluide
+	_current_zoom = lerp(_current_zoom, _target_zoom, smooth_zoom_speed * delta)
+
+	# Calcul de l'inclinaison dynamique (Tilt)
+	var zoom_percent = (_current_zoom - min_zoom) / (max_zoom - min_zoom)
+	var current_tilt = lerp(tilt_angle_min, tilt_angle_max, zoom_percent)
+	rotation.x = lerp_angle(rotation.x, deg_to_rad(current_tilt), acceleration * delta)
+
+	# Calcul de la position par rapport au pivot au sol
+	# On utilise la trigonométrie pour garder le point cible au centre
+	var tilt_rad = rotation.x
+	var dist_z = _current_zoom * cos(tilt_rad)
+	var dist_y = _current_zoom * -sin(tilt_rad) # rotation.x est négative
+
+	var offset = Vector3(0, dist_y, dist_z).rotated(Vector3.UP, rotation.y)
 	var desired_cam_pos = _target_position + offset
 
 	global_position = global_position.lerp(desired_cam_pos, acceleration * delta)
