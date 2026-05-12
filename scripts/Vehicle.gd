@@ -2,9 +2,11 @@ extends Node3D
 
 # Vehicle.gd
 # Gère le déplacement fluide du véhicule sur la grille via le chemin A*.
+# Intègre maintenant le système économique (maintenance et revenus).
 
 @export var speed: float = 5.0
 @export var reward: int = 100
+@export var maintenance_cost: int = 10 # Coût de maintenance quotidien
 
 var path: Array[Vector3] = []
 var target_index: int = 0
@@ -15,6 +17,9 @@ func _ready() -> void:
 	position.y = 0.5
 	MapManager.road_removed.connect(_on_road_removed_globally)
 
+	# Ajout au groupe pour le calcul de la maintenance par EconomyManager
+	add_to_group("vehicles")
+
 func _on_road_removed_globally(_grid_pos: Vector2i):
 	check_path_validity()
 
@@ -23,9 +28,7 @@ func _process(delta: float) -> void:
 		return
 
 	# Intégration du speed_factor du TimeManager
-	# Note: Engine.time_scale gère déjà delta si on utilise delta normalement,
-	# mais il est bon de vérifier si on veut un comportement spécifique.
-	# Ici, delta est déjà affecté par Engine.time_scale.
+	# Note: Engine.time_scale gère déjà delta si on utilise delta normalement.
 
 	var target_pos = path[target_index]
 	target_pos.y = position.y # Garder la même hauteur
@@ -62,9 +65,10 @@ func set_path(new_path: Array[Vector3]):
 # Appelé quand le véhicule atteint sa destination
 func _on_arrival():
 	is_moving = false
-	EconomyManager.add_money(reward)
-	print("Véhicule arrivé ! Gain : ", reward)
-	# On peut supprimer le véhicule ou le renvoyer au dépôt
+	# Le gain est maintenant différé jusqu'au prochain tick quotidien
+	EconomyManager.add_pending_revenue(reward)
+	print("Véhicule arrivé ! Gain différé : ", reward)
+	# On supprime le véhicule (il ne coûte plus de maintenance)
 	queue_free()
 
 # Vérifie si le chemin est toujours valide (utilisé par MapManager si une route est supprimée)
