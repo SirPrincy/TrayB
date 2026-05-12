@@ -1,9 +1,9 @@
-[gd_scene load_steps=9 format=3 uid="uid://dl8spg4spjxjr"]
+[gd_scene load_steps=13 format=3 uid="uid://dl8spg4spjxjr"]
 
 [ext_resource type="Script" path="res://scripts/RTSCamera.gd" id="1_rts"]
 [ext_resource type="Script" path="res://scripts/GridCursor.gd" id="2_grid"]
-[ext_resource type="PackedScene" uid="uid://c7d6r3v8j1k2a" path="res://Depot.tscn" id="3_depot"]
 [ext_resource type="PackedScene" uid="uid://bv6n8m5e7n1x7" path="res://UI.tscn" id="4_ui"]
+[ext_resource type="Script" path="res://scripts/MapInitializer.gd" id="5_mapinit"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.384314, 0.454902, 0.54902, 1)
@@ -19,8 +19,27 @@ sky = SubResource("Sky_1")
 tonemap_mode = 2
 glow_enabled = true
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ocean"]
+albedo_color = Color(0.12549, 0.290196, 0.529412, 1)
+
 [sub_resource type="PlaneMesh" id="PlaneMesh_1"]
-size = Vector2(100, 100)
+material = SubResource("StandardMaterial3D_ocean")
+size = Vector2(500, 500)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_island"]
+albedo_color = Color(0.27451, 0.509804, 0.196078, 1)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_island"]
+material = SubResource("StandardMaterial3D_island")
+size = Vector2(40, 100)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_north"]
+material = SubResource("StandardMaterial3D_island")
+size = Vector2(20, 40)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_south"]
+material = SubResource("StandardMaterial3D_island")
+size = Vector2(30, 40)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
 transparency = 1
@@ -42,6 +61,20 @@ environment = SubResource("Environment_1")
 [node name="Floor" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_1")
 
+[node name="MadagascarIsland" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+
+[node name="MainBody" type="MeshInstance3D" parent="MadagascarIsland"]
+mesh = SubResource("PlaneMesh_island")
+
+[node name="North" type="MeshInstance3D" parent="MadagascarIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -50)
+mesh = SubResource("PlaneMesh_north")
+
+[node name="South" type="MeshInstance3D" parent="MadagascarIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 50)
+mesh = SubResource("PlaneMesh_south")
+
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 20, 20)
 script = ExtResource("1_rts")
@@ -52,7 +85,7 @@ script = ExtResource("2_grid")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="GridCursor"]
 mesh = SubResource("BoxMesh_1")
 
-[node name="Depot" parent="." instance=ExtResource("3_depot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1)
+[node name="MapInitializer" type="Node3D" parent="."]
+script = ExtResource("5_mapinit")
 
 [node name="UI" parent="." instance=ExtResource("4_ui")]

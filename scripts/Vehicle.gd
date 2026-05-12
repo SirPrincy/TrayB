@@ -132,10 +132,18 @@ func _on_arrival():
 	is_moving = false
 
 	if current_load > 0:
-		var total_reward = current_load * reward_per_unit
+		# Calcul de la distance totale parcourue
+		var total_distance = 0.0
+		for i in range(path.size() - 1):
+			total_distance += path[i].distance_to(path[i+1])
+
+		# Facteur de distance (ex: distance / taille de la grille)
+		var distance_factor = total_distance / MapManager.grid_size
+		var total_reward = int(current_load * reward_per_unit * (1.0 + distance_factor * 0.1))
+
 		# Le gain est maintenant différé jusqu'au prochain tick quotidien
 		EconomyManager.add_pending_revenue(total_reward)
-		print("Véhicule arrivé ! Gain différé : ", total_reward, " pour ", current_load, " unités.")
+		print("Véhicule arrivé ! Gain différé : ", total_reward, " pour ", current_load, " unités sur une distance de ", total_distance)
 	else:
 		print("Véhicule arrivé à vide. Aucun gain.")
 
