@@ -5,10 +5,29 @@ extends StaticBody3D
 
 @export var vehicle_scene = preload("res://Vehicle.tscn")
 
+# Gestion du stock
+@export var stock_type: MapManager.CargoType = MapManager.CargoType.PASSENGER
+@export var stock_amount: int = 0
+@export var generation_rate: int = 5 # Nombre d'unités générées par tick
+
 func _ready() -> void:
-	# Enregistrement du dépôt dans MapManager pour la navigation
+	# Enregistrement du dépôt dans MapManager pour la navigation et l'accès au stock
 	var grid_pos = MapManager.world_to_grid(global_position)
-	MapManager.add_building(grid_pos, "depot")
+	MapManager.add_building(grid_pos, "depot", self)
+
+	# Connexion au signal de tick pour générer du stock
+	EconomyManager.game_tick.connect(_on_game_tick)
+
+# Génère du stock à chaque tick de jeu
+func _on_game_tick():
+	stock_amount += generation_rate
+	# print("Dépôt : Stock actuel (", MapManager.CargoType.keys()[stock_type], ") = ", stock_amount)
+
+# Fonction pour permettre au véhicule de récupérer du stock
+func take_stock(max_to_take: int) -> int:
+	var taken = min(stock_amount, max_to_take)
+	stock_amount -= taken
+	return taken
 
 func _input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:

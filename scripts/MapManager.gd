@@ -5,10 +5,14 @@ extends Node3D
 
 signal road_removed(grid_pos: Vector2i)
 
+enum CargoType { NONE, PASSENGER, CARGO }
+
 # Dictionnaire pour stocker les types d'infrastructures par coordonnées de grille (Vector2i)
 var grid_data = {} # { Vector2i: String }
 # Dictionnaire pour stocker les instances visuelles
 var visuals = {}   # { Vector2i: Node3D }
+# Dictionnaire pour stocker les instances de bâtiments (pour accéder à leurs stocks)
+var buildings_instances = {} # { Vector2i: Node }
 
 @export var grid_size: float = 2.0
 @export var road_cost: int = 50
@@ -45,11 +49,14 @@ func add_road(grid_pos: Vector2i):
 	_update_neighbors(grid_pos)
 
 # Permet d'ajouter un bâtiment qui participe à la navigation
-func add_building(grid_pos: Vector2i, type: String):
+func add_building(grid_pos: Vector2i, type: String, instance: Node = null):
 	if grid_data.has(grid_pos):
 		return
 
 	grid_data[grid_pos] = type
+	if instance:
+		buildings_instances[grid_pos] = instance
+
 	_update_astar_connections(grid_pos)
 	# On ne crée pas de visuel ici car le bâtiment a sa propre scène
 
