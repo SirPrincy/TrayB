@@ -49,3 +49,5 @@ func _update_cursor_position(world_pos: Vector3) -> void:
 func _handle_input() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		MapManager.add_road(_current_grid_pos)
+	elif Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		MapManager.remove_road(_current_grid_pos)

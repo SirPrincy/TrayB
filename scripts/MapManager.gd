@@ -1,7 +1,9 @@
 extends Node3D
 
 # MapManager.gd
-# Gère les données de la carte (grille) et le rendu des infrastructures.
+# Gère les données de la carte (grille), le rendu des infrastructures et la navigation A*.
+
+signal road_removed(grid_pos: Vector2i)
 
 # Dictionnaire pour stocker les types d'infrastructures par coordonnées de grille (Vector2i)
 var grid_data = {} # { Vector2i: String }
@@ -9,41 +11,122 @@ var grid_data = {} # { Vector2i: String }
 var visuals = {}   # { Vector2i: Node3D }
 
 @export var grid_size: float = 2.0
+@export var road_cost: int = 50
 var route_scene = preload("res://RouteVisual.tscn")
 
+# Système de navigation A*
+var astar = AStar2D.new()
+var _grid_to_id = {}
+var _next_id = 0
+
 func _ready() -> void:
-	# On s'assure que le MapManager est bien positionné au centre si nécessaire
-	# mais comme il gère des positions absolues, peu importe.
 	pass
+
+# Retourne un ID unique pour une position de grille
+func _get_or_create_id(grid_pos: Vector2i) -> int:
+	if not _grid_to_id.has(grid_pos):
+		_grid_to_id[grid_pos] = _next_id
+		astar.add_point(_next_id, Vector2(grid_pos.x, grid_pos.y))
+		_next_id += 1
+	return _grid_to_id[grid_pos]
 
 # Ajoute une route à la position donnée (coordonnées de grille)
 func add_road(grid_pos: Vector2i):
 	if grid_data.has(grid_pos):
-		return # Empêche de poser deux routes au même endroit
+		return
+
+	# Vérification du budget via EconomyManager
+	if not EconomyManager.spend_money(road_cost):
+		return
 
 	grid_data[grid_pos] = "route"
 	_create_visual(grid_pos)
+	_update_astar_connections(grid_pos)
 	_update_neighbors(grid_pos)
+
+# Permet d'ajouter un bâtiment qui participe à la navigation
+func add_building(grid_pos: Vector2i, type: String):
+	if grid_data.has(grid_pos):
+		return
+
+	grid_data[grid_pos] = type
+	_update_astar_connections(grid_pos)
+	# On ne crée pas de visuel ici car le bâtiment a sa propre scène
+
+func _update_astar_connections(grid_pos: Vector2i):
+	var current_id = _get_or_create_id(grid_pos)
+	var neighbors = [
+		grid_pos + Vector2i.UP,
+		grid_pos + Vector2i.DOWN,
+		grid_pos + Vector2i.LEFT,
+		grid_pos + Vector2i.RIGHT
+	]
+
+	for n_pos in neighbors:
+		if grid_data.has(n_pos):
+			var n_id = _get_or_create_id(n_pos)
+			astar.connect_points(current_id, n_id)
+
+# Supprime une route
+func remove_road(grid_pos: Vector2i):
+	if not grid_data.has(grid_pos) or grid_data[grid_pos] != "route":
+		return
+
+	grid_data.erase(grid_pos)
+
+	if visuals.has(grid_pos):
+		visuals[grid_pos].queue_free()
+		visuals.erase(grid_pos)
+
+	if _grid_to_id.has(grid_pos):
+		var id = _grid_to_id[grid_pos]
+		astar.remove_point(id)
+		_grid_to_id.erase(grid_pos)
+
+	road_removed.emit(grid_pos)
+	_update_neighbors(grid_pos)
+
+# Calcule un chemin entre deux positions de grille
+func get_route_path(start_grid_pos: Vector2i, end_grid_pos: Vector2i) -> Array[Vector3]:
+	if not _grid_to_id.has(start_grid_pos) or not _grid_to_id.has(end_grid_pos):
+		return []
+
+	var start_id = _grid_to_id[start_grid_pos]
+	var end_id = _grid_to_id[end_grid_pos]
+
+	var point_path = astar.get_point_path(start_id, end_id)
+	var world_path: Array[Vector3] = []
+
+	for point in point_path:
+		world_path.append(grid_to_world(Vector2i(int(point.x), int(point.y))))
+
+	return world_path
+
+# Utilitaires de conversion
+func grid_to_world(grid_pos: Vector2i) -> Vector3:
+	var world_x = grid_pos.x * grid_size + (grid_size / 2.0)
+	var world_z = grid_pos.y * grid_size + (grid_size / 2.0)
+	return Vector3(world_x, 0.0, world_z)
+
+func world_to_grid(world_pos: Vector3) -> Vector2i:
+	var grid_x = floor(world_pos.x / grid_size)
+	var grid_z = floor(world_pos.z / grid_size)
+	return Vector2i(int(grid_x), int(grid_z))
 
 # Crée l'instance visuelle pour une case de route
 func _create_visual(grid_pos: Vector2i):
 	if not route_scene:
-		push_error("RouteVisual.tscn n'est pas chargé")
 		return
 
 	var instance = route_scene.instantiate()
 	add_child(instance)
-
-	# Positionnement au centre de la case de grille
-	# On multiplie par grid_size et on ajoute grid_size/2 pour centrer le mesh
-	var world_x = grid_pos.x * grid_size + (grid_size / 2.0)
-	var world_z = grid_pos.y * grid_size + (grid_size / 2.0)
-	instance.position = Vector3(world_x, 0.01, world_z) # 0.01 pour éviter le Z-fighting avec le sol
+	instance.position = grid_to_world(grid_pos)
+	instance.position.y = 0.01
 
 	visuals[grid_pos] = instance
 	_update_visual(grid_pos)
 
-# Met à jour les voisins d'une case pour recalculer leur auto-tiling
+# Met à jour les voisins d'une case
 func _update_neighbors(grid_pos: Vector2i):
 	var neighbors = [
 		grid_pos + Vector2i.UP,
@@ -60,29 +143,20 @@ func _update_visual(grid_pos: Vector2i):
 	var visual = visuals[grid_pos]
 	if not visual: return
 
-	# Vérification de la présence de voisins (haut, bas, gauche, droite)
-	var up = grid_data.has(grid_pos + Vector2i.UP)
-	var down = grid_data.has(grid_pos + Vector2i.DOWN)
-	var left = grid_data.has(grid_pos + Vector2i.LEFT)
-	var right = grid_data.has(grid_pos + Vector2i.RIGHT)
-
-	# Logique de rotation et d'échelle pour simuler des connexions
-	# C'est ici qu'on peut plus tard remplacer par des modèles de virages/croisements
+	var up = grid_data.get(grid_pos + Vector2i.UP) == "route"
+	var down = grid_data.get(grid_pos + Vector2i.DOWN) == "route"
+	var left = grid_data.get(grid_pos + Vector2i.LEFT) == "route"
+	var right = grid_data.get(grid_pos + Vector2i.RIGHT) == "route"
 
 	if (up or down) and not (left or right):
-		# Route verticale
 		visual.rotation_degrees.y = 90
 		visual.scale = Vector3(1, 1, 1)
 	elif (left or right) and not (up or down):
-		# Route horizontale
 		visual.rotation_degrees.y = 0
 		visual.scale = Vector3(1, 1, 1)
 	elif (up or down) and (left or right):
-		# Intersection
 		visual.rotation_degrees.y = 0
-		# On augmente un peu l'échelle pour couvrir l'intersection avec le rectangle
 		visual.scale = Vector3(1.2, 1, 1.2)
 	else:
-		# Route isolée
 		visual.rotation_degrees.y = 0
 		visual.scale = Vector3(1, 1, 1)
