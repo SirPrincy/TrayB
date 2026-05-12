@@ -1,0 +1,10 @@
+63f7b34db8d8cdea90c76aacccf841ec
+::res://::1778575246
+icon.svg::CompressedTexture2D::6638756437579541709::1778584576::1778575247::1::::<><><>0<>0<>3231e0b855d65f7cac3f68f4ef57b5cc<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+main.tscn::PackedScene::8000583850537694039::1778575051::0::1::::<><><>0<>0<><>::res://scripts/RTSCamera.gd<>res://scripts/GridCursor.gd
+README.md::TextFile::-1::1778574117::0::1::::<><><>0<>0<><>::
+SETUP_GUIDE.md::TextFile::-1::1778574117::0::1::::<><><>0<>0<><>::
+::res://scripts/::1778574168
+GridCursor.gd::GDScript::8149600499299090653::1778574117::0::1::::<>Node3D<><>0<>0<><>::
+RTSCamera.gd::GDScript::3445569793022901020::1778574117::0::1::::<>Camera3D<><>0<>0<><>::
+TimeManager.gd::GDScript::134889388913018846::1778574117::0::1::::<>Node<><>0<>0<><>::
