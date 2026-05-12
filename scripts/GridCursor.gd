@@ -7,6 +7,7 @@ extends Node3D
 @export var cursor_visual: MeshInstance3D # Référence au cube plat visuel
 
 var _camera: Camera3D
+var _current_grid_pos: Vector2i
 
 func _ready() -> void:
 	_camera = get_viewport().get_camera_3d()
@@ -31,10 +32,20 @@ func _process(_delta: float) -> void:
 		if t > 0:
 			var world_pos = ray_origin + ray_direction * t
 			_update_cursor_position(world_pos)
+			_handle_input()
 
 func _update_cursor_position(world_pos: Vector3) -> void:
 	# Calcul du snap sur la grille
-	var snapped_x = floor(world_pos.x / grid_size) * grid_size + (grid_size / 2.0)
-	var snapped_z = floor(world_pos.z / grid_size) * grid_size + (grid_size / 2.0)
+	var grid_x = floor(world_pos.x / grid_size)
+	var grid_z = floor(world_pos.z / grid_size)
+
+	_current_grid_pos = Vector2i(int(grid_x), int(grid_z))
+
+	var snapped_x = grid_x * grid_size + (grid_size / 2.0)
+	var snapped_z = grid_z * grid_size + (grid_size / 2.0)
 
 	global_position = Vector3(snapped_x, 0.05, snapped_z) # Un peu au dessus du sol pour éviter le Z-fighting
+
+func _handle_input() -> void:
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		MapManager.add_road(_current_grid_pos)
