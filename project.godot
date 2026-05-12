@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 TimeManager="*res://scripts/TimeManager.gd"
 MapManager="*res://scripts/MapManager.gd"
+EconomyManager="*res://scripts/EconomyManager.gd"
 
 [physics]
 
