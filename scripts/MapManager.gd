@@ -9,6 +9,8 @@ enum CargoType { NONE, PASSENGER, CARGO }
 
 # Dictionnaire pour stocker les types d'infrastructures par coordonnées de grille (Vector2i)
 var grid_data = {} # { Vector2i: String }
+# Poids des routes pour l'A*
+var grid_weights = {} # { Vector2i: float }
 # Dictionnaire pour stocker les instances visuelles
 var visuals = {}   # { Vector2i: Node3D }
 # Dictionnaire pour stocker les instances de bâtiments (pour accéder à leurs stocks)
@@ -53,12 +55,13 @@ func is_valid_terrain(grid_pos: Vector2i) -> bool:
 func _get_or_create_id(grid_pos: Vector2i) -> int:
 	if not _grid_to_id.has(grid_pos):
 		_grid_to_id[grid_pos] = _next_id
-		astar.add_point(_next_id, Vector2(grid_pos.x, grid_pos.y))
+		var weight = grid_weights.get(grid_pos, 1.0)
+		astar.add_point(_next_id, Vector2(grid_pos.x, grid_pos.y), weight)
 		_next_id += 1
 	return _grid_to_id[grid_pos]
 
 # Ajoute une route à la position donnée (coordonnées de grille)
-func add_road(grid_pos: Vector2i):
+func add_road(grid_pos: Vector2i, type: String = "route", weight: float = 1.0):
 	if grid_data.has(grid_pos):
 		return
 
@@ -73,7 +76,8 @@ func add_road(grid_pos: Vector2i):
 			ui.show_notification("Fonds insuffisants !")
 		return
 
-	grid_data[grid_pos] = "route"
+	grid_data[grid_pos] = type
+	grid_weights[grid_pos] = weight
 	_create_visual(grid_pos)
 	_update_astar_connections(grid_pos)
 	_update_neighbors(grid_pos)
@@ -92,24 +96,37 @@ func add_building(grid_pos: Vector2i, type: String, instance: Node = null):
 
 func _update_astar_connections(grid_pos: Vector2i):
 	var current_id = _get_or_create_id(grid_pos)
-	var neighbors = [
-		grid_pos + Vector2i.UP,
-		grid_pos + Vector2i.DOWN,
-		grid_pos + Vector2i.LEFT,
-		grid_pos + Vector2i.RIGHT
-	]
+
+	# Autoriser les diagonales
+	var neighbors = []
+	for x in range(-1, 2):
+		for y in range(-1, 2):
+			if x == 0 and y == 0: continue
+			neighbors.append(grid_pos + Vector2i(x, y))
 
 	for n_pos in neighbors:
 		if grid_data.has(n_pos):
 			var n_id = _get_or_create_id(n_pos)
+			# Godot AStar2D.connect_points est bidirectionnel par défaut
 			astar.connect_points(current_id, n_id)
 
 # Supprime une route
 func remove_road(grid_pos: Vector2i):
-	if not grid_data.has(grid_pos) or grid_data[grid_pos] != "route":
+	if not grid_data.has(grid_pos) or (grid_data[grid_pos] != "route" and grid_data[grid_pos] != "piste"):
 		return
 
+	# Sécurité : Vérifier si des véhicules sont sur cette route
+	var vehicles = get_tree().get_nodes_in_group("vehicles")
+	for v in vehicles:
+		if v.visible: # Seulement ceux qui ne sont pas au garage
+			var v_grid = world_to_grid(v.global_position)
+			if v_grid == grid_pos:
+				# Forcer le recalcul du chemin
+				if v.has_method("check_path_validity"):
+					v.check_path_validity()
+
 	grid_data.erase(grid_pos)
+	grid_weights.erase(grid_pos)
 
 	if visuals.has(grid_pos):
 		visuals[grid_pos].queue_free()
@@ -131,6 +148,7 @@ func get_route_path(start_grid_pos: Vector2i, end_grid_pos: Vector2i) -> Array[V
 	var start_id = _grid_to_id[start_grid_pos]
 	var end_id = _grid_to_id[end_grid_pos]
 
+	# Utiliser get_point_path pour avoir les coordonnées
 	var point_path = astar.get_point_path(start_id, end_id)
 	var world_path: Array[Vector3] = []
 

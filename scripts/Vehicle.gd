@@ -31,6 +31,11 @@ var path: Array[Vector3] = []
 var target_index: int = 0
 var is_moving: bool = false
 
+# Système de ligne
+var assigned_line = null
+var current_destination_name: String = ""
+var is_returning: bool = false # Pour savoir si on va vers A ou vers B
+
 @onready var mesh_instance = $MeshInstance3D
 @onready var progress_bar = $ProgressBar # Sera ajouté dans le .tscn
 
@@ -91,15 +96,38 @@ func set_path(new_path: Array[Vector3]):
 
 	is_moving = true
 
+# Définit la destination pour un trajet simple
+func set_line_destination(dest_name: String):
+	current_destination_name = dest_name
+
+# Assigne le véhicule à une ligne régulière
+func assign_to_line(line):
+	assigned_line = line
+	is_returning = false
+	current_destination_name = line.dest_name
+	set_path(line.path)
+
+# Désassigne le véhicule
+func unassign():
+	assigned_line = null
+	enter_garage()
+
 # Tente de charger du stock depuis un bâtiment à la position actuelle
 func try_load():
 	var grid_pos = MapManager.world_to_grid(position)
 	if MapManager.buildings_instances.has(grid_pos):
 		var building = MapManager.buildings_instances[grid_pos]
-		if building.has_method("take_stock"):
+
+		# Si on a une destination spécifique, on utilise take_targeted_stock
+		if current_destination_name != "" and building.has_method("take_targeted_stock"):
+			self.load_type = MapManager.CargoType.PASSENGER # Par défaut pour le ciblé
+			self.current_load = building.take_targeted_stock(current_destination_name, max_capacity)
+		elif building.has_method("take_stock"):
 			self.load_type = building.stock_type
 			self.current_load = building.take_stock(max_capacity)
-			print("Véhicule chargé : ", current_load, " de type ", MapManager.CargoType.keys()[load_type])
+
+		if current_load > 0:
+			print("Véhicule chargé : ", current_load, " pour ", current_destination_name)
 
 # Met à jour l'apparence du véhicule selon son chargement
 func update_visuals():
@@ -131,25 +159,58 @@ func update_visuals():
 func _on_arrival():
 	is_moving = false
 
+	var revenue = 0
 	if current_load > 0:
 		# Calcul de la distance totale parcourue
 		var total_distance = 0.0
 		for i in range(path.size() - 1):
 			total_distance += path[i].distance_to(path[i+1])
 
-		# Facteur de distance (ex: distance / taille de la grille)
 		var distance_factor = total_distance / MapManager.grid_size
-		var total_reward = int(current_load * reward_per_unit * (1.0 + distance_factor * 0.1))
+		revenue = int(current_load * reward_per_unit * (1.0 + distance_factor * 0.1))
 
-		# Le gain est maintenant différé jusqu'au prochain tick quotidien
-		EconomyManager.add_pending_revenue(total_reward)
+		EconomyManager.add_pending_revenue(revenue)
 		MissionManager.add_transport_stat(current_load)
-		print("Véhicule arrivé ! Gain différé : ", total_reward, " pour ", current_load, " unités sur une distance de ", total_distance)
-	else:
-		print("Véhicule arrivé à vide. Aucun gain.")
 
-	# On supprime le véhicule (il ne coûte plus de maintenance)
-	queue_free()
+		if assigned_line:
+			LineManager.register_profit(assigned_line.id, revenue)
+
+		print("Véhicule arrivé ! Gain : ", revenue, " pour ", current_load, " à ", current_destination_name)
+
+	# Déchargement
+	current_load = 0
+
+	if assigned_line:
+		# Faire le trajet inverse
+		is_returning = !is_returning
+		current_destination_name = assigned_line.origin_name if is_returning else assigned_line.dest_name
+
+		var new_path = assigned_line.path.duplicate()
+		if is_returning:
+			new_path.reverse()
+
+		# Petit délai avant de repartir pour simuler le temps de chargement/déchargement
+		await get_tree().create_timer(1.0).timeout
+		if assigned_line: # Vérifier s'il est toujours assigné
+			set_path(new_path)
+	else:
+		# Retour au garage (pool)
+		enter_garage()
+
+func enter_garage():
+	hide()
+	is_moving = false
+	current_load = 0
+	load_type = MapManager.CargoType.NONE
+	assigned_line = null
+	current_destination_name = ""
+	# On garde le véhicule dans le groupe vehicles mais il est caché
+	# Il faut s'assurer que EconomyManager ne compte pas les véhicules cachés dans la maintenance si on veut être strict
+	# Mais ici on va dire qu'au garage ils ne coûtent rien.
+
+func exit_garage():
+	show()
+	# Réinitialisation si nécessaire
 
 # Vérifie si le chemin est toujours valide (utilisé par MapManager si une route est supprimée)
 func check_path_validity():
@@ -161,7 +222,28 @@ func check_path_validity():
 			return
 
 func _on_path_invalidated():
-	print("Chemin invalidé ! Arrêt du véhicule.")
-	is_moving = false
-	# Optionnel : essayer de recalculer un chemin
-	queue_free() # Pour l'instant on le supprime simplement
+	print("Chemin invalidé pour véhicule à ", position)
+	# Recalcul de chemin si possible
+	var grid_pos = MapManager.world_to_grid(position)
+	var dest_grid = Vector2i.ZERO
+
+	if assigned_line:
+		dest_grid = assigned_line.origin_pos if is_returning else assigned_line.dest_pos
+	elif current_destination_name != "":
+		# Trouver la position de la destination par son nom
+		for pos in MapManager.buildings_instances.keys():
+			var b = MapManager.buildings_instances[pos]
+			if b.has_method("is_city") and b.city_name == current_destination_name:
+				dest_grid = pos
+				break
+
+	if dest_grid != Vector2i.ZERO:
+		var new_path = MapManager.get_route_path(grid_pos, dest_grid)
+		if new_path.size() >= 2:
+			print("Recalcul réussi.")
+			path = new_path
+			target_index = 1
+			return
+
+	print("Impossible de recalculer. Retour au garage.")
+	enter_garage()

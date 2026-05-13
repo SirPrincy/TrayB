@@ -22,6 +22,7 @@ MapManager="*res://scripts/MapManager.gd"
 EconomyManager="*res://scripts/EconomyManager.gd"
 ToolManager="*res://scripts/ToolManager.gd"
 MissionManager="*res://scripts/MissionManager.gd"
+LineManager="*res://scripts/LineManager.gd"
 
 [physics]
 
