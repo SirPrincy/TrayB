@@ -26,6 +26,29 @@ var _next_id = 0
 func _ready() -> void:
 	pass
 
+# Vérifie si le terrain aux coordonnées données est constructible (Terre vs Mer)
+func is_valid_terrain(grid_pos: Vector2i) -> bool:
+	var world_pos = grid_to_world(grid_pos)
+	var x = world_pos.x
+	var z = world_pos.z
+
+	# Définition simplifiée des zones de terre (Madagascar) basée sur main.tscn
+	# (Ajustée pour inclure les positions des villes)
+
+	# Main Body
+	if x >= -25.0 and x <= 25.0 and z >= -55.0 and z <= 55.0:
+		return true
+
+	# North
+	if x >= -10.0 and x <= 20.0 and z >= -75.0 and z <= -25.0:
+		return true
+
+	# South
+	if x >= -25.0 and x <= 15.0 and z >= 25.0 and z <= 75.0:
+		return true
+
+	return false
+
 # Retourne un ID unique pour une position de grille
 func _get_or_create_id(grid_pos: Vector2i) -> int:
 	if not _grid_to_id.has(grid_pos):
@@ -37,6 +60,10 @@ func _get_or_create_id(grid_pos: Vector2i) -> int:
 # Ajoute une route à la position donnée (coordonnées de grille)
 func add_road(grid_pos: Vector2i):
 	if grid_data.has(grid_pos):
+		return
+
+	if not is_valid_terrain(grid_pos):
+		# Optionnel : Message d'erreur ici si nécessaire
 		return
 
 	# Vérification du budget via EconomyManager
