@@ -24,6 +24,7 @@ var _target_position: Vector3 # Position du pivot au sol
 var _target_zoom: float = 30.0
 var _target_rotation: float = 0.0
 var _current_zoom: float = 30.0
+var _touch_positions = {}
 
 func _ready() -> void:
 	# On initialise la position cible au sol
@@ -45,7 +46,7 @@ func _input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_target_zoom = min(max_zoom, _target_zoom + zoom_speed)
 
-	# Rotation et Drag
+	# Rotation et Drag Souris
 	if event is InputEventMouseMotion:
 		# Rotation avec le bouton central
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
@@ -56,6 +57,48 @@ func _input(event: InputEvent) -> void:
 			var drag_speed = _current_zoom * 0.001
 			var drag_dir = Vector3(-event.relative.x, 0, -event.relative.y).rotated(Vector3.UP, rotation.y)
 			_target_position += drag_dir * drag_speed * 100 * get_process_delta_time()
+
+	# Support Tactile
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_touch_positions[event.index] = event.position
+		else:
+			_touch_positions.erase(event.index)
+
+	if event is InputEventScreenDrag:
+		_touch_positions[event.index] = event.position
+
+		if _touch_positions.size() == 1:
+			# Panoramique à un doigt
+			var drag_speed = _current_zoom * 0.001
+			var drag_dir = Vector3(-event.relative.x, 0, -event.relative.y).rotated(Vector3.UP, rotation.y)
+			_target_position += drag_dir * drag_speed * 100 * get_process_delta_time()
+
+		elif _touch_positions.size() == 2:
+			# Pinch-to-zoom et Rotation à deux doigts
+			var indices = _touch_positions.keys()
+			var p1 = _touch_positions[indices[0]]
+			var p2 = _touch_positions[indices[1]]
+
+			var prev_p1 = p1
+			var prev_p2 = p2
+
+			if event.index == indices[0]:
+				prev_p1 = p1 - event.relative
+			else:
+				prev_p2 = p2 - event.relative
+
+			# Zoom
+			var old_dist = prev_p1.distance_to(prev_p2)
+			var new_dist = p1.distance_to(p2)
+			if old_dist > 0:
+				var ratio = new_dist / old_dist
+				_target_zoom = clamp(_target_zoom / ratio, min_zoom, max_zoom)
+
+			# Rotation
+			var old_dir = (prev_p2 - prev_p1).angle()
+			var new_dir = (p2 - p1).angle()
+			_target_rotation -= wrapf(new_dir - old_dir, -PI, PI)
 
 func _handle_rotation(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, _target_rotation, acceleration * delta)

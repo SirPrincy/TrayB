@@ -14,7 +14,16 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_uiman")
 
-[node name="HUD" type="MarginContainer" parent="Control"]
+[node name="PCUI" type="Control" parent="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HUD" type="MarginContainer" parent="Control/PCUI"]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -25,10 +34,10 @@ grow_horizontal = 0
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 20
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/HUD"]
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/PCUI/HUD"]
 layout_mode = 2
 
-[node name="MoneyLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="MoneyLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
@@ -36,7 +45,7 @@ theme_override_font_sizes/font_size = 24
 text = "Argent: 1000 $"
 horizontal_alignment = 2
 
-[node name="PendingRevenueLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="PendingRevenueLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
@@ -45,7 +54,7 @@ theme_override_font_sizes/font_size = 14
 text = "Revenus en attente: 0 $"
 horizontal_alignment = 2
 
-[node name="MaintenanceLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="MaintenanceLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
@@ -54,7 +63,7 @@ theme_override_font_sizes/font_size = 14
 text = "Maintenance jour: 0 $"
 horizontal_alignment = 2
 
-[node name="ActiveVehiclesLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="ActiveVehiclesLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
@@ -62,7 +71,7 @@ theme_override_font_sizes/font_size = 14
 text = "Véhicules actifs: 0"
 horizontal_alignment = 2
 
-[node name="DateLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="DateLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
@@ -70,7 +79,7 @@ theme_override_font_sizes/font_size = 18
 text = "Jour 1"
 horizontal_alignment = 2
 
-[node name="GameSpeedLabel" type="Label" parent="Control/HUD/VBoxContainer"]
+[node name="GameSpeedLabel" type="Label" parent="Control/PCUI/HUD/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
@@ -78,7 +87,7 @@ theme_override_font_sizes/font_size = 14
 text = "Vitesse: x1"
 horizontal_alignment = 2
 
-[node name="Toolbar" type="MarginContainer" parent="Control"]
+[node name="Toolbar" type="MarginContainer" parent="Control/PCUI"]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -92,35 +101,248 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/margin_bottom = 20
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Control/Toolbar"]
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/PCUI/Toolbar"]
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="BuildButton" type="Button" parent="Control/Toolbar/HBoxContainer"]
+[node name="BuildButton" type="Button" parent="Control/PCUI/Toolbar/HBoxContainer"]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 text = "🔨"
 
-[node name="DeleteButton" type="Button" parent="Control/Toolbar/HBoxContainer"]
+[node name="DeleteButton" type="Button" parent="Control/PCUI/Toolbar/HBoxContainer"]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 text = "🗑️"
 
-[node name="SelectButton" type="Button" parent="Control/Toolbar/HBoxContainer"]
+[node name="SelectButton" type="Button" parent="Control/PCUI/Toolbar/HBoxContainer"]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 text = "🏙️"
 
-[node name="InspectButton" type="Button" parent="Control/Toolbar/HBoxContainer"]
+[node name="InspectButton" type="Button" parent="Control/PCUI/Toolbar/HBoxContainer"]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 text = "🔍"
 
-[node name="LinesButton" type="Button" parent="Control/Toolbar/HBoxContainer"]
+[node name="LinesButton" type="Button" parent="Control/PCUI/Toolbar/HBoxContainer"]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 text = "📈"
+
+[node name="ObjectivesPanel" type="PanelContainer" parent="Control/PCUI"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 270.0
+offset_bottom = 170.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/PCUI/ObjectivesPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Title" type="Label" parent="Control/PCUI/ObjectivesPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Objectifs"
+
+[node name="GoalList" type="VBoxContainer" parent="Control/PCUI/ObjectivesPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="MobileUI" type="Control" parent="Control"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HUD" type="MarginContainer" parent="Control/MobileUI"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_bottom = 250.0
+grow_horizontal = 0
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/MobileUI/HUD"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "Argent: 1000 $"
+horizontal_alignment = 2
+
+[node name="PendingRevenueLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Revenus en attente: 0 $"
+horizontal_alignment = 2
+
+[node name="MaintenanceLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Maintenance jour: 0 $"
+horizontal_alignment = 2
+
+[node name="ActiveVehiclesLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Véhicules actifs: 0"
+horizontal_alignment = 2
+
+[node name="DateLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 24
+text = "Jour 1"
+horizontal_alignment = 2
+
+[node name="GameSpeedLabel" type="Label" parent="Control/MobileUI/HUD/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Vitesse: x1"
+horizontal_alignment = 2
+
+[node name="Toolbar" type="MarginContainer" parent="Control/MobileUI"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = -120.0
+offset_right = 250.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/margin_bottom = 20
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/MobileUI/Toolbar"]
+layout_mode = 2
+theme_override_constants/separation = 15
+alignment = 1
+
+[node name="BuildButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "🔨"
+
+[node name="DeleteButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "🗑️"
+
+[node name="SelectButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "🏙️"
+
+[node name="InspectButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "🔍"
+
+[node name="LinesButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "📈"
+
+[node name="CancelButton" type="Button" parent="Control/MobileUI/Toolbar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "❌"
+
+[node name="TimeControls" type="MarginContainer" parent="Control/MobileUI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -100.0
+offset_right = 350.0
+grow_vertical = 0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/MobileUI/TimeControls"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PauseButton" type="Button" parent="Control/MobileUI/TimeControls/HBoxContainer"]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "⏸️"
+
+[node name="Speed1Button" type="Button" parent="Control/MobileUI/TimeControls/HBoxContainer"]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "x1"
+
+[node name="Speed2Button" type="Button" parent="Control/MobileUI/TimeControls/HBoxContainer"]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "x2"
+
+[node name="Speed4Button" type="Button" parent="Control/MobileUI/TimeControls/HBoxContainer"]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "x4"
+
+[node name="ObjectivesPanel" type="PanelContainer" parent="Control/MobileUI"]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 320.0
+offset_bottom = 220.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/MobileUI/ObjectivesPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Title" type="Label" parent="Control/MobileUI/ObjectivesPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Objectifs"
+
+[node name="GoalList" type="VBoxContainer" parent="Control/MobileUI/ObjectivesPanel/VBoxContainer"]
+layout_mode = 2
 
 [node name="DestinationPanel" type="PanelContainer" parent="Control"]
 visible = false
@@ -294,29 +516,6 @@ autowrap_mode = 2
 [node name="RestartButton" type="Button" parent="Control/GameOverPanel/VBoxContainer"]
 layout_mode = 2
 text = "Recommencer"
-
-[node name="ObjectivesPanel" type="PanelContainer" parent="Control"]
-layout_mode = 1
-anchors_preset = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 270.0
-offset_bottom = 170.0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/ObjectivesPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="Title" type="Label" parent="Control/ObjectivesPanel/VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Objectifs"
-
-[node name="GoalList" type="VBoxContainer" parent="Control/ObjectivesPanel/VBoxContainer"]
-layout_mode = 2
 
 [node name="VictoryPanel" type="PanelContainer" parent="Control"]
 visible = false
