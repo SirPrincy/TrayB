@@ -68,6 +68,9 @@ func add_road(grid_pos: Vector2i):
 
 	# Vérification du budget via EconomyManager
 	if not EconomyManager.spend_money(road_cost):
+		var ui = get_tree().root.find_child("Control", true)
+		if ui and ui.has_method("show_notification"):
+			ui.show_notification("Fonds insuffisants !")
 		return
 
 	grid_data[grid_pos] = "route"

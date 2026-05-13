@@ -143,6 +143,7 @@ func _on_arrival():
 
 		# Le gain est maintenant différé jusqu'au prochain tick quotidien
 		EconomyManager.add_pending_revenue(total_reward)
+		MissionManager.add_transport_stat(current_load)
 		print("Véhicule arrivé ! Gain différé : ", total_reward, " pour ", current_load, " unités sur une distance de ", total_distance)
 	else:
 		print("Véhicule arrivé à vide. Aucun gain.")
