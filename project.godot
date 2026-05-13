@@ -21,6 +21,7 @@ TimeManager="*res://scripts/TimeManager.gd"
 MapManager="*res://scripts/MapManager.gd"
 EconomyManager="*res://scripts/EconomyManager.gd"
 ToolManager="*res://scripts/ToolManager.gd"
+MissionManager="*res://scripts/MissionManager.gd"
 
 [physics]
 

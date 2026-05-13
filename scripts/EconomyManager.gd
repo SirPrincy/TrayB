@@ -7,6 +7,7 @@ extends Node
 signal balance_changed(new_balance: int)
 signal game_tick()
 signal day_changed(day: int)
+signal game_over(reason: String)
 
 @export var balance: int = 1000:
 	set(value):
@@ -18,6 +19,8 @@ signal day_changed(day: int)
 var current_day: int = 1
 var time_accumulator: float = 0.0
 var pending_revenue: int = 0
+var history: Array[Dictionary] = []
+var bankruptcy_days: int = 0
 
 func _ready() -> void:
 	print("EconomyManager prêt. Solde initial : ", balance)
@@ -43,10 +46,29 @@ func _process_day_tick() -> void:
 			if "maintenance_cost" in vehicle:
 				total_maintenance += vehicle.maintenance_cost
 
+	# Sauvegarde des stats du jour avant mise à jour du solde
+	var daily_stats = {
+		"day": current_day,
+		"revenue": pending_revenue,
+		"maintenance": total_maintenance,
+		"profit": pending_revenue - total_maintenance,
+		"balance_after": balance + (pending_revenue - total_maintenance)
+	}
+	history.append(daily_stats)
+	if history.size() > 7:
+		history.remove_at(0)
+
 	# Mise à jour du solde : revenus accumulés moins maintenance
-	# Utilisation de self.balance pour déclencher le setter et le signal balance_changed
 	var net_change = pending_revenue - total_maintenance
 	self.balance += net_change
+
+	# Logique de faillite
+	if balance < 0:
+		bankruptcy_days += 1
+		if bankruptcy_days >= 3:
+			game_over.emit("Faillite : Solde négatif pendant 3 jours consécutifs.")
+	else:
+		bankruptcy_days = 0
 
 	# Réinitialisation des revenus pour le jour suivant
 	pending_revenue = 0
@@ -58,7 +80,7 @@ func _process_day_tick() -> void:
 	game_tick.emit()
 	day_changed.emit(current_day)
 
-	print("Jour ", current_day, " terminé. Maintenance: ", total_maintenance, " Net: ", net_change)
+	print("Jour ", current_day - 1, " terminé. Maintenance: ", total_maintenance, " Net: ", net_change)
 
 # Ajoute des revenus qui seront perçus au prochain tick
 func add_pending_revenue(amount: int) -> void:
