@@ -80,7 +80,7 @@ func _on_city_clicked():
 
 func get_reachable_cities() -> Array:
 	var my_grid_pos = MapManager.world_to_grid(global_position)
-	var reachable_cities = []
+	var cities_info = []
 
 	for pos in MapManager.buildings_instances.keys():
 		if pos == my_grid_pos:
@@ -88,15 +88,39 @@ func get_reachable_cities() -> Array:
 
 		var building = MapManager.buildings_instances[pos]
 		if MapManager.grid_data.get(pos) == "city":
-			# Vérifier si un chemin existe
-			var path = MapManager.get_route_path(my_grid_pos, pos)
-			if path.size() >= 2:
-				reachable_cities.append({
+			# Vérifier si un chemin existe déjà
+			var existing_path = MapManager.get_route_path(my_grid_pos, pos)
+			var connected = existing_path.size() >= 2
+
+			var path_to_use = existing_path
+			var construction_cost = 0
+			var grid_path = []
+
+			if not connected:
+				# Calculer le chemin potentiel et le coût
+				grid_path = MapManager.get_potential_path(my_grid_pos, pos)
+				if grid_path.size() >= 2:
+					var segments_to_build = 0
+					for gp in grid_path:
+						if not MapManager.grid_data.has(gp):
+							segments_to_build += 1
+					construction_cost = segments_to_build * MapManager.road_cost
+
+					# Convertir grid_path en world_path pour l'aperçu/usage futur
+					path_to_use = []
+					for gp in grid_path:
+						path_to_use.append(MapManager.grid_to_world(gp))
+
+			if path_to_use.size() >= 2:
+				cities_info.append({
 					"pos": pos,
-					"path": path,
-					"name": building.city_name if "city_name" in building else "Inconnu"
+					"path": path_to_use,
+					"grid_path": grid_path,
+					"name": building.city_name if "city_name" in building else "Inconnu",
+					"connected": connected,
+					"construction_cost": construction_cost
 				})
-	return reachable_cities
+	return cities_info
 
 func spawn_vehicle_to(path: Array[Vector3], dest_name: String):
 	# Vérification de la demande pour la destination spécifique

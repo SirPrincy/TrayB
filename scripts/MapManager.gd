@@ -25,8 +25,36 @@ var astar = AStar2D.new()
 var _grid_to_id = {}
 var _next_id = 0
 
+# A* pour le terrain (pour le calcul automatique des routes)
+var terrain_astar = AStar2D.new()
+var _terrain_grid_to_id = {}
+
 func _ready() -> void:
-	pass
+	_initialize_terrain_astar()
+
+func _initialize_terrain_astar():
+	# Scanne une zone large pour définir le terrain navigable (Madagascar)
+	var min_grid = world_to_grid(Vector3(-30, 0, -80))
+	var max_grid = world_to_grid(Vector3(30, 0, 80))
+
+	var tid = 0
+	for x in range(min_grid.x, max_grid.x + 1):
+		for y in range(min_grid.y, max_grid.y + 1):
+			var gp = Vector2i(x, y)
+			if is_valid_terrain(gp):
+				terrain_astar.add_point(tid, Vector2(x, y))
+				_terrain_grid_to_id[gp] = tid
+				tid += 1
+
+	# Connecter les voisins (incluant diagonales)
+	for gp in _terrain_grid_to_id.keys():
+		var id = _terrain_grid_to_id[gp]
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				if dx == 0 and dy == 0: continue
+				var n_gp = gp + Vector2i(dx, dy)
+				if _terrain_grid_to_id.has(n_gp):
+					terrain_astar.connect_points(id, _terrain_grid_to_id[n_gp])
 
 # Vérifie si le terrain aux coordonnées données est constructible (Terre vs Mer)
 func is_valid_terrain(grid_pos: Vector2i) -> bool:
@@ -156,6 +184,53 @@ func get_route_path(start_grid_pos: Vector2i, end_grid_pos: Vector2i) -> Array[V
 		world_path.append(grid_to_world(Vector2i(int(point.x), int(point.y))))
 
 	return world_path
+
+# Trouve un chemin potentiel sur le terrain (même sans route)
+func get_potential_path(start_gp: Vector2i, end_gp: Vector2i) -> Array[Vector2i]:
+	if not _terrain_grid_to_id.has(start_gp) or not _terrain_grid_to_id.has(end_gp):
+		return []
+
+	var start_id = _terrain_grid_to_id[start_gp]
+	var end_id = _terrain_grid_to_id[end_gp]
+
+	var point_path = terrain_astar.get_point_path(start_id, end_id)
+	var grid_path: Array[Vector2i] = []
+	for p in point_path:
+		grid_path.append(Vector2i(int(p.x), int(p.y)))
+	return grid_path
+
+# Construit automatiquement un réseau de routes le long d'un chemin
+func build_road_network(grid_path: Array[Vector2i]) -> bool:
+	if grid_path.size() < 2: return false
+
+	# Calculer le nombre de segments à construire
+	var segments_to_build = []
+	for gp in grid_path:
+		if not grid_data.has(gp):
+			segments_to_build.append(gp)
+
+	var total_cost = segments_to_build.size() * road_cost
+
+	# Vérification du budget global une seule fois
+	if EconomyManager.balance < total_cost:
+		var ui = get_tree().root.find_child("Control", true)
+		if ui and ui.has_method("show_notification"):
+			ui.show_notification("Fonds insuffisants pour la route complète !")
+		return false
+
+	# Construction
+	for gp in grid_path:
+		if not grid_data.has(gp):
+			# On court-circuite add_road pour éviter les multiples checks de budget individuels
+			# mais on s'assure d'impacter le budget.
+			if EconomyManager.spend_money(road_cost):
+				grid_data[gp] = "route"
+				grid_weights[gp] = 1.0
+				_create_visual(gp)
+				_update_astar_connections(gp)
+				_update_neighbors(gp)
+
+	return true
 
 # Utilitaires de conversion
 func grid_to_world(grid_pos: Vector2i) -> Vector3:

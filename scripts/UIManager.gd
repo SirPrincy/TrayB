@@ -221,7 +221,7 @@ func show_destination_panel(origin_city):
 
 	if reachable_cities.is_empty():
 		var label = Label.new()
-		label.text = "Aucune ville connectée"
+		label.text = "Aucune destination possible"
 		city_list.add_child(label)
 	else:
 		for city_info in reachable_cities:
@@ -230,7 +230,17 @@ func show_destination_panel(origin_city):
 			var revenue = int(dist * 2.0)
 			var time = int(dist / 5.0)
 
-			btn.text = "%s\nRevenu: %d$ | Temps: %ds" % [city_info.name, revenue, time]
+			var btn_text = "%s\n" % city_info.name
+			if not city_info.connected:
+				btn_text += "[NON CONNECTÉ - Coût: %d$]\n" % city_info.construction_cost
+
+			btn_text += "Revenu: %d$ | Temps: %ds" % [revenue, time]
+			btn.text = btn_text
+
+			if not city_info.connected and EconomyManager.balance < city_info.construction_cost:
+				btn.disabled = true
+				btn.modulate = Color(1, 0.5, 0.5)
+
 			btn.pressed.connect(_on_destination_selected.bind(city_info))
 			city_list.add_child(btn)
 
@@ -238,6 +248,15 @@ func show_destination_panel(origin_city):
 
 func _on_destination_selected(city_info):
 	if _current_origin_city:
+		# Si non connecté, on construit la route d'abord
+		if not city_info.connected:
+			if MapManager.build_road_network(city_info.grid_path):
+				show_notification("Route construite vers " + city_info.name)
+			else:
+				# Normalement désactivé si pas de fonds, mais sécurité
+				show_notification("Échec de la construction !")
+				return
+
 		# Au lieu de spawn direct, on propose de créer une ligne ou un trajet simple
 		# Pour simplifier ici, on crée une ligne
 		if LineManager.create_line(_current_origin_city, MapManager.buildings_instances[city_info.pos]):
