@@ -40,6 +40,12 @@ extends Control
 @onready var victory_panel = $VictoryPanel
 @onready var continue_victory_btn = $VictoryPanel/VBoxContainer/ContinueVictoryButton
 
+# Line Management Panel (Assumed to be added in UI scene)
+@onready var lines_panel = $LinesPanel
+@onready var lines_list = $LinesPanel/VBoxContainer/ScrollContainer/LinesList
+@onready var close_lines_btn = $LinesPanel/VBoxContainer/CloseLinesButton
+@onready var open_lines_btn = $Toolbar/HBoxContainer/LinesButton
+
 var _current_origin_city = null
 var _last_balance = 0
 
@@ -66,11 +72,18 @@ func _ready() -> void:
 	delete_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.SUPPRIMER))
 	select_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.SELECTION_VILLE))
 	inspect_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.INSPECTER))
+	if open_lines_btn:
+		open_lines_btn.pressed.connect(show_lines_panel)
 
 	close_dest_btn.pressed.connect(func(): dest_panel.hide())
 	close_report_btn.pressed.connect(func(): daily_report_panel.hide())
+	if close_lines_btn:
+		close_lines_btn.pressed.connect(func(): lines_panel.hide())
 	restart_btn.pressed.connect(func(): get_tree().reload_current_scene())
 	continue_victory_btn.pressed.connect(func(): victory_panel.hide())
+
+	# Connexion LineManager
+	LineManager.lines_updated.connect(_update_lines_list)
 
 func _process(_delta: float) -> void:
 	# Mise à jour des infos qui changent souvent (véhicules, revenus en attente)
@@ -206,6 +219,50 @@ func show_destination_panel(origin_city):
 
 func _on_destination_selected(city_info):
 	if _current_origin_city:
-		_current_origin_city.spawn_vehicle_to(city_info.path)
+		# Au lieu de spawn direct, on propose de créer une ligne ou un trajet simple
+		# Pour simplifier ici, on crée une ligne
+		if LineManager.create_line(_current_origin_city, MapManager.buildings_instances[city_info.pos]):
+			show_notification("Ligne créée : " + _current_origin_city.city_name + " - " + city_info.name)
+			show_lines_panel()
+		else:
+			# Si la ligne existe déjà, on l'ouvre
+			show_lines_panel()
+
 	dest_panel.hide()
 	ToolManager.set_mode(ToolManager.ToolMode.INSPECTER)
+
+func show_lines_panel():
+	_update_lines_list()
+	lines_panel.show()
+
+func _update_lines_list():
+	if not lines_list: return
+
+	for child in lines_list.get_children():
+		child.queue_free()
+
+	for line_id in LineManager.lines:
+		var line = LineManager.lines[line_id]
+		var container = HBoxContainer.new()
+
+		var label = Label.new()
+		label.text = "%s | Freq: %.1f/m | Véhicules: %d | Profit: %d$" % [line.id, line.frequency, line.vehicles.size(), line.daily_profit]
+		label.custom_minimum_size.x = 350
+		container.add_child(label)
+
+		var add_v = Button.new()
+		add_v.text = "+"
+		add_v.pressed.connect(func(): LineManager.add_vehicle_to_line(line_id))
+		container.add_child(add_v)
+
+		var rem_v = Button.new()
+		rem_v.text = "-"
+		rem_v.pressed.connect(func(): LineManager.remove_vehicle_from_line(line_id))
+		container.add_child(rem_v)
+
+		var close_l = Button.new()
+		close_l.text = "Fermer"
+		close_l.pressed.connect(func(): LineManager.close_line(line_id))
+		container.add_child(close_l)
+
+		lines_list.add_child(container)

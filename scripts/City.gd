@@ -9,7 +9,7 @@ extends StaticBody3D
 @export var vehicle_scene = preload("res://Vehicle.tscn")
 @export var stock_type: MapManager.CargoType = MapManager.CargoType.PASSENGER
 
-var stock_amount: int = 0
+var targeted_demand: Dictionary = {} # { "NomVille": nombre_passagers }
 var generation_rate: float = 0.0
 
 @onready var label_3d: Label3D = $Label3D
@@ -19,8 +19,8 @@ func _ready() -> void:
 	var grid_pos = MapManager.world_to_grid(global_position)
 	MapManager.add_building(grid_pos, "city", self)
 
-	# Initialisation du taux de génération basé sur la population (ex: 1 passager pour 1000 habitants par tick)
-	generation_rate = max(1, population / 500.0)
+	# Initialisation du taux de génération basé sur la population (ex: 1 passager pour 500 habitants par tick)
+	generation_rate = max(1.0, population / 500.0)
 
 	label_3d.text = city_name
 
@@ -28,16 +28,38 @@ func _ready() -> void:
 	EconomyManager.game_tick.connect(_on_game_tick)
 
 func _on_game_tick():
-	stock_amount += int(generation_rate)
+	# Générer de la demande vers les autres villes
+	for pos in MapManager.buildings_instances.keys():
+		var building = MapManager.buildings_instances[pos]
+		if building == self or not building.has_method("is_city"):
+			continue
+
+		var dest_name = building.city_name
+		if not targeted_demand.has(dest_name):
+			targeted_demand[dest_name] = 0
+
+		# Calcul de la croissance basée sur la population de la destination
+		# Les grandes villes attirent plus de monde
+		var attraction_factor = building.population / 1000.0
+		var growth = int(generation_rate * attraction_factor * randf_range(0.5, 1.5))
+		targeted_demand[dest_name] += max(1, growth)
+
 	update_label()
 
 func update_label():
-	label_3d.text = city_name + "\n(" + str(stock_amount) + ")"
+	var total_stock = 0
+	for count in targeted_demand.values():
+		total_stock += count
+	label_3d.text = city_name + "\n(" + str(total_stock) + ")"
 
-# Fonction pour le chargement par le véhicule
-func take_stock(max_to_take: int) -> int:
-	var taken = min(stock_amount, max_to_take)
-	stock_amount -= taken
+# Fonction pour le chargement ciblé par le véhicule
+func take_targeted_stock(dest_name: String, max_to_take: int) -> int:
+	if not targeted_demand.has(dest_name):
+		return 0
+
+	var available = targeted_demand[dest_name]
+	var taken = min(available, max_to_take)
+	targeted_demand[dest_name] -= taken
 	update_label()
 	return taken
 
@@ -76,16 +98,22 @@ func get_reachable_cities() -> Array:
 				})
 	return reachable_cities
 
-func spawn_vehicle_to(path: Array[Vector3]):
-	if stock_amount <= 0:
-		print("Pas assez de passagers à ", city_name)
+func spawn_vehicle_to(path: Array[Vector3], dest_name: String):
+	# Vérification de la demande pour la destination spécifique
+	if not targeted_demand.has(dest_name) or targeted_demand[dest_name] <= 0:
+		print("Pas de passagers pour ", dest_name, " à ", city_name)
 		return
 
 	var vehicle = vehicle_scene.instantiate()
 	get_parent().add_child(vehicle)
+
+	# Passer l'info de destination au véhicule
+	if vehicle.has_method("set_line_destination"):
+		vehicle.set_line_destination(dest_name)
+
 	# Le chargement s'effectue automatiquement via vehicle.set_path() -> try_load()
 	vehicle.set_path(path)
-	print("Véhicule envoyé de ", city_name, " vers destination avec ", vehicle.current_load, " passagers.")
+	print("Véhicule envoyé de ", city_name, " vers ", dest_name, " avec ", vehicle.current_load, " passagers.")
 
 func is_city():
 	return true
