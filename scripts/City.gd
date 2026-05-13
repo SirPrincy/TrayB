@@ -46,12 +46,17 @@ func _input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _nor
 		_on_city_clicked()
 
 func _on_city_clicked():
-	print("Ville cliquée : ", city_name)
-	if stock_amount <= 0:
-		print("Pas assez de passagers à ", city_name)
+	if ToolManager.current_mode != ToolManager.ToolMode.SELECTION_VILLE:
+		print("Cliquez sur l'icône Ville pour sélectionner une destination")
 		return
 
-	# Trouver d'autres villes connectées
+	print("Ville source sélectionnée : ", city_name)
+	# Utiliser l'UI pour afficher les destinations possibles
+	var ui = get_tree().root.find_child("Control", true)
+	if ui and ui.has_method("show_destination_panel"):
+		ui.show_destination_panel(self)
+
+func get_reachable_cities() -> Array:
 	var my_grid_pos = MapManager.world_to_grid(global_position)
 	var reachable_cities = []
 
@@ -60,21 +65,22 @@ func _on_city_clicked():
 			continue
 
 		var building = MapManager.buildings_instances[pos]
-		if building.has_method("is_city") or MapManager.grid_data.get(pos) == "city":
+		if MapManager.grid_data.get(pos) == "city":
 			# Vérifier si un chemin existe
 			var path = MapManager.get_route_path(my_grid_pos, pos)
 			if path.size() >= 2:
-				reachable_cities.append({"pos": pos, "path": path, "name": building.city_name if "city_name" in building else "Inconnu"})
+				reachable_cities.append({
+					"pos": pos,
+					"path": path,
+					"name": building.city_name if "city_name" in building else "Inconnu"
+				})
+	return reachable_cities
 
-	if reachable_cities.is_empty():
-		print("Aucune autre ville connectée à ", city_name)
+func spawn_vehicle_to(path: Array[Vector3]):
+	if stock_amount <= 0:
+		print("Pas assez de passagers à ", city_name)
 		return
 
-	# Pour la première boucle de gameplay, on prend une destination au hasard parmi celles connectées
-	var target = reachable_cities.pick_random()
-	_spawn_vehicle(target.path)
-
-func _spawn_vehicle(path: Array[Vector3]):
 	var vehicle = vehicle_scene.instantiate()
 	get_parent().add_child(vehicle)
 	# Le chargement s'effectue automatiquement via vehicle.set_path() -> try_load()
