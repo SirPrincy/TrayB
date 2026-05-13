@@ -11,6 +11,9 @@ var _current_grid_pos: Vector2i
 var _ghost_material: StandardMaterial3D
 var _cost_label: Label3D
 
+var _touch_start_pos: Vector2
+var _is_touch_dragging: bool = false
+
 func _ready() -> void:
 	_camera = get_viewport().get_camera_3d()
 	if not cursor_visual:
@@ -44,14 +47,16 @@ func _process(_delta: float) -> void:
 	var ray_direction = _camera.project_ray_normal(mouse_pos)
 
 	# Intersection avec le plan horizontal (y=0)
-	# Equation du plan : P . N = d (ici N=(0,1,0) et d=0)
-	# t = (d - origin . N) / (direction . N)
 	if ray_direction.y != 0:
 		var t = -ray_origin.y / ray_direction.y
 		if t > 0:
 			var world_pos = ray_origin + ray_direction * t
 			_update_cursor_position(world_pos)
-			_handle_input()
+
+			# Sur PC on garde le comportement "painting" (drag pour construire)
+			# Sur Mobile on utilise _input pour le "Tap to build"
+			if not DisplayServer.is_touchscreen_available():
+				_handle_input()
 
 func _update_cursor_position(world_pos: Vector3) -> void:
 	# Calcul du snap sur la grille
@@ -96,16 +101,36 @@ func _update_ghost_visual():
 		_ghost_material.albedo_color = Color(1, 0, 0, 0.5) # Rouge
 		_cost_label.modulate = Color.RED
 
-func _handle_input() -> void:
-	var mode = ToolManager.current_mode
-
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		match mode:
-			ToolManager.ToolMode.CONSTRUIRE:
-				MapManager.add_road(_current_grid_pos)
-			ToolManager.ToolMode.SUPPRIMER:
-				MapManager.remove_road(_current_grid_pos)
-
-	# Click droit pour annuler/revenir en mode inspection
-	if Input.is_mouse_button_just_pressed(MOUSE_BUTTON_RIGHT):
+func _input(event: InputEvent) -> void:
+	# Click droit (PC) ou Bouton Annuler (Mobile) pour revenir en mode inspection
+	if event.is_action_pressed("ui_cancel") or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed):
 		ToolManager.set_mode(ToolManager.ToolMode.INSPECTER)
+		return
+
+	# Logique spécifique Mobile : Tap to Build
+	if DisplayServer.is_touchscreen_available():
+		if event is InputEventScreenTouch:
+			if event.pressed:
+				_touch_start_pos = event.position
+				_is_touch_dragging = false
+			else:
+				if not _is_touch_dragging and event.position.distance_to(_touch_start_pos) < 20:
+					# C'est un Tap !
+					_trigger_action()
+
+		if event is InputEventScreenDrag:
+			if event.relative.length() > 5:
+				_is_touch_dragging = true
+
+func _handle_input() -> void:
+	# Comportement PC (Painting)
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_trigger_action()
+
+func _trigger_action() -> void:
+	var mode = ToolManager.current_mode
+	match mode:
+		ToolManager.ToolMode.CONSTRUIRE:
+			MapManager.add_road(_current_grid_pos)
+		ToolManager.ToolMode.SUPPRIMER:
+			MapManager.remove_road(_current_grid_pos)

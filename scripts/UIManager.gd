@@ -3,18 +3,26 @@ extends Control
 # UIManager.gd
 # Gère l'affichage des informations économiques, temporelles et des missions.
 
-@onready var money_label: Label = $HUD/VBoxContainer/MoneyLabel
-@onready var pending_revenue_label: Label = $HUD/VBoxContainer/PendingRevenueLabel
-@onready var maintenance_label: Label = $HUD/VBoxContainer/MaintenanceLabel
-@onready var active_vehicles_label: Label = $HUD/VBoxContainer/ActiveVehiclesLabel
-@onready var date_label: Label = $HUD/VBoxContainer/DateLabel
-@onready var speed_label: Label = $HUD/VBoxContainer/GameSpeedLabel
+var money_label: Label
+var pending_revenue_label: Label
+var maintenance_label: Label
+var active_vehicles_label: Label
+var date_label: Label
+var speed_label: Label
 
 # Toolbar buttons
-@onready var build_btn = $Toolbar/HBoxContainer/BuildButton
-@onready var delete_btn = $Toolbar/HBoxContainer/DeleteButton
-@onready var select_btn = $Toolbar/HBoxContainer/SelectButton
-@onready var inspect_btn = $Toolbar/HBoxContainer/InspectButton
+var build_btn: Button
+var delete_btn: Button
+var select_btn: Button
+var inspect_btn: Button
+var cancel_btn: Button # Mobile only
+var open_lines_btn: Button
+
+# Time buttons (Mobile only)
+var pause_btn: Button
+var speed1_btn: Button
+var speed2_btn: Button
+var speed4_btn: Button
 
 # Destination Panel
 @onready var dest_panel = $DestinationPanel
@@ -34,8 +42,8 @@ extends Control
 @onready var game_over_reason = $GameOverPanel/VBoxContainer/Reason
 @onready var restart_btn = $GameOverPanel/VBoxContainer/RestartButton
 
-@onready var objectives_panel = $ObjectivesPanel
-@onready var goal_list = $ObjectivesPanel/VBoxContainer/GoalList
+var objectives_panel: Control
+var goal_list: Control
 
 @onready var victory_panel = $VictoryPanel
 @onready var continue_victory_btn = $VictoryPanel/VBoxContainer/ContinueVictoryButton
@@ -44,12 +52,14 @@ extends Control
 @onready var lines_panel = $LinesPanel
 @onready var lines_list = $LinesPanel/VBoxContainer/ScrollContainer/LinesList
 @onready var close_lines_btn = $LinesPanel/VBoxContainer/CloseLinesButton
-@onready var open_lines_btn = $Toolbar/HBoxContainer/LinesButton
 
 var _current_origin_city = null
 var _last_balance = 0
+var _is_mobile = false
 
 func _ready() -> void:
+	_detect_platform()
+	_setup_ui_references()
 	# Connexions EconomyManager
 	EconomyManager.balance_changed.connect(_on_balance_changed)
 	EconomyManager.day_changed.connect(_on_day_changed)
@@ -72,8 +82,17 @@ func _ready() -> void:
 	delete_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.SUPPRIMER))
 	select_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.SELECTION_VILLE))
 	inspect_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.INSPECTER))
+	if cancel_btn:
+		cancel_btn.pressed.connect(func(): ToolManager.set_mode(ToolManager.ToolMode.INSPECTER))
+
 	if open_lines_btn:
 		open_lines_btn.pressed.connect(show_lines_panel)
+
+	# Time buttons (Mobile)
+	if pause_btn: pause_btn.pressed.connect(func(): TimeManager.toggle_pause())
+	if speed1_btn: speed1_btn.pressed.connect(func(): TimeManager.set_speed(1.0))
+	if speed2_btn: speed2_btn.pressed.connect(func(): TimeManager.set_speed(2.0))
+	if speed4_btn: speed4_btn.pressed.connect(func(): TimeManager.set_speed(4.0))
 
 	close_dest_btn.pressed.connect(func(): dest_panel.hide())
 	close_report_btn.pressed.connect(func(): daily_report_panel.hide())
@@ -252,17 +271,56 @@ func _update_lines_list():
 
 		var add_v = Button.new()
 		add_v.text = "+"
+		add_v.custom_minimum_size = Vector2(40, 40) if not _is_mobile else Vector2(60, 60)
 		add_v.pressed.connect(func(): LineManager.add_vehicle_to_line(line_id))
 		container.add_child(add_v)
 
 		var rem_v = Button.new()
 		rem_v.text = "-"
+		rem_v.custom_minimum_size = Vector2(40, 40) if not _is_mobile else Vector2(60, 60)
 		rem_v.pressed.connect(func(): LineManager.remove_vehicle_from_line(line_id))
 		container.add_child(rem_v)
 
 		var close_l = Button.new()
 		close_l.text = "Fermer"
+		close_l.custom_minimum_size = Vector2(80, 40) if not _is_mobile else Vector2(100, 60)
 		close_l.pressed.connect(func(): LineManager.close_line(line_id))
 		container.add_child(close_l)
 
 		lines_list.add_child(container)
+
+func _detect_platform():
+	# On peut forcer avec une feature tag ou vérifier la présence d'écran tactile
+	if OS.has_feature("mobile") or DisplayServer.is_touchscreen_available():
+		_is_mobile = true
+	else:
+		_is_mobile = false
+
+	$PCUI.visible = not _is_mobile
+	$MobileUI.visible = _is_mobile
+
+func _setup_ui_references():
+	var root = "MobileUI" if _is_mobile else "PCUI"
+
+	money_label = get_node(root + "/HUD/VBoxContainer/MoneyLabel")
+	pending_revenue_label = get_node(root + "/HUD/VBoxContainer/PendingRevenueLabel")
+	maintenance_label = get_node(root + "/HUD/VBoxContainer/MaintenanceLabel")
+	active_vehicles_label = get_node(root + "/HUD/VBoxContainer/ActiveVehiclesLabel")
+	date_label = get_node(root + "/HUD/VBoxContainer/DateLabel")
+	speed_label = get_node(root + "/HUD/VBoxContainer/GameSpeedLabel")
+
+	build_btn = get_node(root + "/Toolbar/HBoxContainer/BuildButton")
+	delete_btn = get_node(root + "/Toolbar/HBoxContainer/DeleteButton")
+	select_btn = get_node(root + "/Toolbar/HBoxContainer/SelectButton")
+	inspect_btn = get_node(root + "/Toolbar/HBoxContainer/InspectButton")
+	open_lines_btn = get_node(root + "/Toolbar/HBoxContainer/LinesButton")
+
+	if _is_mobile:
+		cancel_btn = get_node(root + "/Toolbar/HBoxContainer/CancelButton")
+		pause_btn = get_node(root + "/TimeControls/HBoxContainer/PauseButton")
+		speed1_btn = get_node(root + "/TimeControls/HBoxContainer/Speed1Button")
+		speed2_btn = get_node(root + "/TimeControls/HBoxContainer/Speed2Button")
+		speed4_btn = get_node(root + "/TimeControls/HBoxContainer/Speed4Button")
+
+	objectives_panel = get_node(root + "/ObjectivesPanel")
+	goal_list = get_node(root + "/ObjectivesPanel/VBoxContainer/GoalList")
